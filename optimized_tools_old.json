@@ -1,0 +1,327 @@
+{
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "codebase_search",
+                "description": "codebase_search: Semantic search for finding code by meaning. Use for: Exploring unfamiliar code or asking \"how/why\" behavior questions. Avoid for: Exact text (use grep), reading known files (read_file), or symbol lookups. Query Rules: Use specific, natural language questions (e.g., \"Where is password encryption handled?\"); avoid single words or combining multiple questions into one. Targets: Provide exactly ONE directory/file path or [] for the whole repo; no globs or wildcards allowed. Strategy: Start broad with [] to find context, then narrow the target_directories based on results. For files >1k lines, use this tool to find relevant snippets instead of reading the whole file. Context: If full code chunks are provided, don't re-read them; if only signatures/ranges are shown, use read_file to see imports or full logic.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "explanation": {
+                            "type": "string",
+                            "description": "One sentence explanation as to why this tool is being used, and how it contributes to the goal."
+                        },
+                        "query": {
+                            "type": "string",
+                            "description": "A complete question about what you want to understand. Ask as if talking to a colleague: 'How does X work?', 'What happens when Y?', 'Where is Z handled?'"
+                        },
+                        "target_directories": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "Prefix directory paths to limit search scope (single directory only, no glob patterns)"
+                        }
+                    },
+                    "required": [
+                        "explanation",
+                        "query",
+                        "target_directories"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "run_terminal_cmd",
+                "description": "Executes a given command in a shell session.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The terminal command to execute"
+                        },
+                        "is_background": {
+                            "type": "boolean",
+                            "description": "Whether the command should be run in the background"
+                        },
+                        "explanation": {
+                            "type": "string",
+                            "description": "One sentence explanation as to why this command needs to be run and how it contributes to the goal."
+                        }
+                    },
+                    "required": [
+                        "command",
+                        "is_background"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "grep",
+                "description": "grep tool: Use for fast string or regex searches (e.g., `log.*Error`) instead of terminal commands. Supports file filtering via **globs** (`src/**/*.ts`) or **types** (`py`), and offers three **output modes**: `content` (default), `files_with_matches`, or `count`. Note that ripgrep syntax requires escaping braces (`\\{ \\}`) and setting `multiline: true` for cross-line matches. Results are capped for speed (showing 'at least' counts if truncated), and formatting follows standard ripgrep style with `:` for matches and `-` for context.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pattern": {
+                            "type": "string",
+                            "description": "The regular expression pattern to search for in file contents (rg --regexp)"
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": "File or directory to search in (rg pattern -- PATH). Defaults to Cursor workspace roots."
+                        },
+                        "glob": {
+                            "type": "string",
+                            "description": "Glob pattern (rg --glob GLOB -- PATH) to filter files (e.g. \"*.js\", \"*.{ts,tsx}\")."
+                        },
+                        "output_mode": {
+                            "type": "string",
+                            "description": "Output mode: \"content\" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), \"files_with_matches\" shows file paths (supports head_limit), \"count\" shows match counts (supports head_limit). Defaults to \"content\".",
+                            "enum": [
+                                "content",
+                                "files_with_matches",
+                                "count"
+                            ]
+                        },
+                        "-B": {
+                            "type": "number",
+                            "description": "Number of lines to show before each match (rg -B). Requires output_mode: \"content\", ignored otherwise."
+                        },
+                        "-A": {
+                            "type": "number",
+                            "description": "Number of lines to show after each match (rg -A). Requires output_mode: \"content\", ignored otherwise."
+                        },
+                        "-C": {
+                            "type": "number",
+                            "description": "Number of lines to show before and after each match (rg -C). Requires output_mode: \"content\", ignored otherwise."
+                        },
+                        "-i": {
+                            "type": "boolean",
+                            "description": "Case insensitive search (rg -i) Defaults to false"
+                        },
+                        "type": {
+                            "type": "string",
+                            "description": "File type to search (rg --type). Common types: js, py, rust, go, java, etc. More efficient than glob for standard file types."
+                        },
+                        "head_limit": {
+                            "type": "number",
+                            "description": "Limit output to first N lines/entries, equivalent to \"| head -N\". Works across all output modes: content (limits output lines), files_with_matches (limits file paths), count (limits count entries). When unspecified, shows all ripgrep results."
+                        },
+                        "multiline": {
+                            "type": "boolean",
+                            "description": "Enable multiline mode where . matches newlines and patterns can span lines (rg -U --multiline-dotall). Default: false."
+                        }
+                    },
+                    "required": [
+                        "pattern"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "delete_file",
+                "description": "Deletes a file at the specified path.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_file": {
+                            "type": "string",
+                            "description": "The path of the file to delete, relative to the workspace root."
+                        },
+                        "explanation": {
+                            "type": "string",
+                            "description": "One sentence explanation as to why this tool is being used, and how it contributes to the goal."
+                        }
+                    },
+                    "required": [
+                        "target_file"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "web_search",
+                "description": "Search the web for real-time information about any topic. Use this tool when you need up-to-date information that might not be available in your training data, or when you need to verify current facts. The search results will include relevant snippets and URLs from web pages. This is particularly useful for questions about current events, technology updates, or any topic that requires recent information.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "search_term"
+                    ],
+                    "properties": {
+                        "search_term": {
+                            "type": "string",
+                            "description": "The search term to look up on the web. Be specific and include relevant keywords for better results. For technical queries, include version numbers or dates if relevant."
+                        },
+                        "explanation": {
+                            "type": "string",
+                            "description": "One sentence explanation as to why this tool is being used, and how it contributes to the goal."
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "read_lints",
+                "description": "Read and display linter errors from the current workspace. You can provide paths to specific files or directories, or omit the argument to get diagnostics for all files.\n\n- NEVER call this tool on a file unless you've edited it or are about to edit it",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "paths": {
+                            "description": "Optional. An array of paths to files or directories to read linter errors for. You can use either relative paths in the workspace or absolute paths. If provided, returns diagnostics for the specified files/directories only. If not provided, returns diagnostics for all files in the workspace.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "search_replace",
+                "description": "Performs exact string replacements in files.\n\nUsage:\n- When editing text, ensure you preserve the exact indentation (tabs/spaces) as it appears before. The edit will FAIL if old_string is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use replace_all to change every instance of old_string. NEVER escape `old_string` or `new_string`, that would break the exact literal text requirement. If you are confused why your edit seems to be correct and is not working, try removing all escape characters.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "The path to the file to modify. Always specify the target file as the first argument."
+                        },
+                        "replace_all": {
+                            "type": "boolean",
+                            "description": "Set this to true when you want to replace all occurences of `old_string` in the file. Defaults to false."
+                        },
+                        "new_string": {
+                            "type": "string",
+                            "description": "The exact literal text to replace `old_string` with, unescaped. Provide the EXACT text. Ensure the resulting code is correct and idiomatic."
+                        },
+                        "old_string": {
+                            "type": "string",
+                            "description": "The exact literal text to replace, unescaped. For single replacements (default), include at least 3 lines of context BEFORE and AFTER the target text, matching whitespace and indentation precisely. If this string is not the exact literal text (i.e. you escaped it) or does not match exactly, the tool will fail."
+                        }
+                    },
+                    "required": [
+                        "file_path",
+                        "old_string",
+                        "new_string"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "write",
+                "description": "Writes a file to the local filesystem.\n\nUsage:\n- This tool will overwrite the existing file if there is one at the provided path.\n- If this is an existing file, you MUST use the read_file tool first to read the file's contents before writing.\nDo not proactively create new files unless specified by the user.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "The path to the file to modify. Always specify the target file as the first argument. You can use either a relative path in the workspace or an absolute path."
+                        },
+                        "contents": {
+                            "type": "string",
+                            "description": "The contents of the file to write"
+                        }
+                    },
+                    "required": [
+                        "file_path",
+                        "contents"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Reads a file from the local filesystem. It is okay to read a file that does not exist; an error will be returned.\n- Lines in the output are numbered starting at 1, using following format: LINE_NUMBER|LINE_CONTENT\n- You should only read one file in a single response. \n- If the file is empty, you will receive 'File is empty.'\n\nImage Support:\n- This tool can also read image files when called with the appropriate path.\n- Supported image formats: jpeg/jpg, png, gif, webp.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_file": {
+                            "type": "string",
+                            "description": "The path of the file to read. You can use either a relative path in the workspace or an absolute path. If an absolute path is provided, it will be preserved as is."
+                        },
+                        "offset": {
+                            "type": "integer",
+                            "description": "The line number to start reading from. Only provide if the file is too large to read at once."
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "The number of lines to read. Only provide if the file is too large to read at once."
+                        }
+                    },
+                    "required": [
+                        "target_file"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "list_dir",
+                "description": "Lists files and directories in a given path.\nThe 'target_directory' parameter can be relative to the workspace root or absolute.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_directory": {
+                            "type": "string",
+                            "description": "Path to directory to list contents of."
+                        },
+                        "ignore_globs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "Optional array of glob patterns to ignore.\nAll patterns match anywhere in the target directory. Patterns not starting with \"**/\" are automatically prepended with \"**/\".\n\nExamples:\n\t- \"*.js\" (becomes \"**/*.js\") - ignore all .js files\n\t- \"**/node_modules/**\" - ignore all node_modules directories\n\t- \"**/test/**/test_*.ts\" - ignore all test_*.ts files in any test directory\n"
+                        }
+                    },
+                    "required": [
+                        "target_directory"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "glob_file_search",
+                "description": "\nTool to search for files matching a glob pattern\n\n- Works fast with codebases of any size\n- Returns matching file paths sorted by modification time\n- Use this tool when you need to find files by name patterns\n- You have the capability to call multiple tools in a single response. It is always better to speculatively perform multiple searches that are potentially useful as a batch.\n",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_directory": {
+                            "type": "string",
+                            "description": "Path to directory to search for files in. If not provided, defaults to Cursor workspace roots."
+                        },
+                        "glob_pattern": {
+                            "type": "string",
+                            "description": "The glob pattern to match files against.\nPatterns not starting with \"**/\" are automatically prepended with \"**/\" to enable recursive searching.\n\nExamples:\n\t- \"*.js\" (becomes \"**/*.js\") - find all .js files\n\t- \"**/node_modules/**\" - find all node_modules directories\n\t- \"**/test/**/test_*.ts\" - find all test_*.ts files in any test directory\n"
+                        }
+                    },
+                    "required": [
+                        "glob_pattern"
+                    ]
+                }
+            }
+        }
+    ]
+}

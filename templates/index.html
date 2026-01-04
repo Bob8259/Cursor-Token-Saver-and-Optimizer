@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Token Usage History</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        tr.selected {
+            background-color: #b3d7ff !important;
+        }
+
+        .usage-row {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .controls label {
+            margin-right: 20px;
+            font-weight: bold;
+        }
+
+        .controls input {
+            padding: 5px;
+            width: 130px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Token Usage History</h1>
+
+    <div class="controls">
+        <label>Input Price ($/1M): <input type="number" id="inputPrice" value="0.5" step="0.01"
+                oninput="updateCosts()"></label>
+        <label>Output Price ($/1M): <input type="number" id="outputPrice" value="0.3" step="0.01"
+                oninput="updateCosts()"></label>
+        <label>Start Date: <input type="date" id="startDate" onchange="updateFilters()"></label>
+        <label>End Date: <input type="date" id="endDate" onchange="updateFilters()"></label>
+        <div style="margin-top: 10px; color: #0066cc; font-weight: bold;">
+            Selected: 
+            Cost: $<span id="selectedCost">0.0000</span> | 
+            Input: <span id="selectedInput">0</span> | 
+            Output: <span id="selectedOutput">0</span> | 
+            Time: <span id="selectedTime">0.00</span>s
+        </div>
+    </div>
+
+    <table>
+        <tr>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Model</th>
+            <th>Input Tokens</th>
+            <th>Output Tokens</th>
+            <th>Duration (s)</th>
+            <th>Total Cost ($)</th>
+            <th>Action</th>
+        </tr>
+        {% for log in history %}
+        <tr class="usage-row" data-input="{{ log.input }}" data-output="{{ log.output }}"
+            data-start="{{ log.start_time }}" data-end="{{ log.end_time }}" data-duration="{{ log.duration }}">
+            <td>{{ log.start_time }}</td>
+            <td>{{ log.end_time }}</td>
+            <td>{{ log.model }}</td>
+            <td>{{ log.input }}</td>
+            <td>{{ log.output }}</td>
+            <td>{{ log.duration }}</td>
+            <td class="total-cost">0.0000</td>
+            <td><button onclick="showChat('{{ log.filename }}')">View Chat</button></td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div id="chatModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="chatContent"></div>
+        </div>
+    </div>
+
+    <script>
+        function updateFilters() {
+            document.querySelectorAll('.usage-row').forEach(r => r.classList.remove('selected'));
+            if (typeof updateSelectedCost === 'function') updateSelectedCost();
+
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            document.querySelectorAll('.usage-row').forEach(row => {
+                const timestamp = row.getAttribute('data-start');
+                if (!timestamp) return;
+
+                const date = timestamp.split('T')[0];
+
+                let visible = true;
+                if (startDate && date < startDate) visible = false;
+                if (endDate && date > endDate) visible = false;
+
+                row.style.display = visible ? '' : 'none';
+            });
+        }
+
+        function updateCosts() {
+            const inputPrice = parseFloat(document.getElementById('inputPrice').value) || 0;
+            const outputPrice = parseFloat(document.getElementById('outputPrice').value) || 0;
+
+            // Store prices in localStorage
+            localStorage.setItem('inputPrice', inputPrice);
+            localStorage.setItem('outputPrice', outputPrice);
+
+            document.querySelectorAll('.usage-row').forEach(row => {
+                const inputTokens = parseInt(row.getAttribute('data-input')) || 0;
+                const outputTokens = parseInt(row.getAttribute('data-output')) || 0;
+                const cost = (inputTokens / 1000000 * inputPrice) + (outputTokens / 1000000 * outputPrice);
+                row.querySelector('.total-cost').innerText = cost.toFixed(6);
+            });
+            updateSelectedCost();
+        }
+
+        function updateSelectedCost() {
+            let totalCost = 0;
+            let totalInput = 0;
+            let totalOutput = 0;
+            let totalDuration = 0;
+            
+            document.querySelectorAll('.usage-row.selected').forEach(row => {
+                const cost = parseFloat(row.querySelector('.total-cost').innerText);
+                const input = parseInt(row.getAttribute('data-input')) || 0;
+                const output = parseInt(row.getAttribute('data-output')) || 0;
+                const duration = parseFloat(row.getAttribute('data-duration')) || 0;
+                
+                if (!isNaN(cost)) totalCost += cost;
+                totalInput += input;
+                totalOutput += output;
+                totalDuration += duration;
+            });
+            
+            const costEl = document.getElementById('selectedCost');
+            if (costEl) costEl.innerText = totalCost.toFixed(6);
+            
+            const inputEl = document.getElementById('selectedInput');
+            if (inputEl) inputEl.innerText = totalInput.toLocaleString();
+            
+            const outputEl = document.getElementById('selectedOutput');
+            if (outputEl) outputEl.innerText = totalOutput.toLocaleString();
+            
+            const timeEl = document.getElementById('selectedTime');
+            if (timeEl) timeEl.innerText = totalDuration.toFixed(2);
+        }
+
+        // Load prices from localStorage and update costs on initial load
+        window.onload = function () {
+            const savedInputPrice = localStorage.getItem('inputPrice');
+            const savedOutputPrice = localStorage.getItem('outputPrice');
+
+            if (savedInputPrice !== null) {
+                document.getElementById('inputPrice').value = savedInputPrice;
+            }
+            if (savedOutputPrice !== null) {
+                document.getElementById('outputPrice').value = savedOutputPrice;
+            }
+
+            // Format timestamps to human-readable format (YYYY-MM-DD HH:MM:SS)
+            document.querySelectorAll('.usage-row').forEach(row => {
+                const tsStart = row.getAttribute('data-start');
+                const tsEnd = row.getAttribute('data-end');
+                const pad = (num) => String(num).padStart(2, '0');
+                const format = (ts) => {
+                    if (!ts) return "";
+                    const date = new Date(ts);
+                    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+                };
+                if (tsStart) row.cells[0].innerText = format(tsStart);
+                if (tsEnd) row.cells[1].innerText = format(tsEnd);
+            });
+
+            updateCosts();
+
+            // Drag to select functionality
+            let isMouseDown = false;
+            let startRowIndex = -1;
+            const rows = Array.from(document.querySelectorAll('.usage-row'));
+
+            rows.forEach((row, index) => {
+                row.addEventListener('mousedown', (e) => {
+                    if (e.button !== 0) return; // Only left click
+
+                    isMouseDown = true;
+                    startRowIndex = index;
+
+                    // Always clear on new drag start for simplicity
+                    rows.forEach(r => r.classList.remove('selected'));
+
+                    row.classList.add('selected');
+                    updateSelectedCost();
+                });
+
+                row.addEventListener('mouseover', () => {
+                    if (isMouseDown && startRowIndex !== -1) {
+                        rows.forEach(r => r.classList.remove('selected'));
+
+                        const current = index;
+                        const start = Math.min(startRowIndex, current);
+                        const end = Math.max(startRowIndex, current);
+
+                        for (let i = start; i <= end; i++) {
+                            rows[i].classList.add('selected');
+                        }
+                        updateSelectedCost();
+                    }
+                });
+            });
+
+            document.addEventListener('mouseup', () => {
+                isMouseDown = false;
+                startRowIndex = -1;
+            });
+        };
+
+        function showChat(filename) {
+            fetch('/log/' + filename)
+                .then(response => response.json())
+                .then(data => {
+                    let content = `### REQUEST MESSAGES ###
+${JSON.stringify(data.request_messages, null, 2)}`;
+                    content += `
+
+### MODEL RESPONSE ###
+${data.response_content}`;
+                    document.getElementById('chatContent').innerText = content;
+                    document.getElementById('chatModal').style.display = "block";
+                });
+        }
+        function closeModal() {
+            document.getElementById('chatModal').style.display = "none";
+        }
+        window.onclick = function (event) {
+            if (event.target == document.getElementById('chatModal')) closeModal();
+        }
+    </script>
+</body>
+
+</html>

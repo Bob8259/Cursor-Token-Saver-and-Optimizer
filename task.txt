@@ -1,0 +1,11 @@
+"Using my current dashboard as a base, replace the Wave Chart with a Live Physics Sandbox.
+
+The Simulation: Create 50 circles (particles) of different sizes and colors bouncing inside a box. They must have gravity, momentum, and perform elastic collisions (bouncing off each other and the walls realistically).
+
+The Hard Part (Web Worker): You must move all the physics calculations (velocity, position, collision detection) into a Web Worker. The main thread should only handle drawing.
+
+The Visual Test: Add a 'Chaos Mode' toggle. When turned on, the Web Worker should calculate the physics for 500 particles instead of 50.
+
+The Verification: Add a 'Performance Monitor' overlay that shows the 'Worker Latency' (how long the math takes) vs. the 'Frame Rate' (how fast the drawing is)."
+
+Do not create new folers or new files. Add all code to test.html.

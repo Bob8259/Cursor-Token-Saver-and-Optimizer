@@ -1,0 +1,383 @@
+{
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "Shell",
+                "description": "Executes a given command in a shell session with optional timeout.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The command to execute"
+                        },
+                        "working_directory": {
+                            "type": "string",
+                            "description": "The absolute path to the working directory to execute the command in (defaults to current directory)"
+                        },
+                        "timeout": {
+                            "type": "number",
+                            "description": "Timeout in milliseconds (defaults to 30000ms/30s)"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Clear, concise description of what this command does in 5-10 words"
+                        },
+                        "is_background": {
+                            "type": "boolean",
+                            "description": "Whether the command should be run in the background"
+                        }
+                    },
+                    "required": [
+                        "command"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "Delete",
+                "description": "Deletes a file at the specified path.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The absolute path of the file to delete"
+                        }
+                    },
+                    "required": [
+                        "path"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "Glob",
+                "description": "Tool to search for files matching a glob pattern\n\n- Works fast with codebases of any size\n- Returns matching file paths sorted by modification time\n- Use this tool when you need to find files by name patterns\n- You have the capability to call multiple tools in a single response. It is always better to speculatively perform multiple searches that are potentially useful as a batch.\n",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_directory": {
+                            "type": "string",
+                            "description": "Absolute path to directory to search for files in. If not provided, defaults to Cursor workspace root."
+                        },
+                        "glob_pattern": {
+                            "type": "string",
+                            "description": "The glob pattern to match files against.\nPatterns not starting with \"**/\" are automatically prepended with \"**/\" to enable recursive searching.\n\nExamples:\n\t- \"*.js\" (becomes \"**/*.js\") - find all .js files\n\t- \"**/node_modules/**\" - find all node_modules directories\n\t- \"**/test/**/test_*.ts\" - find all test_*.ts files in any test directory"
+                        }
+                    },
+                    "required": [
+                        "glob_pattern"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "Grep",
+                "description": "Ripgrep Search Tool: Use for fast string or regex searches (e.g., `log.*Error`) instead of terminal commands. Supports file filtering via **globs** (`src/**/*.ts`) or **types** (`py`), and offers three **output modes**: `content` (default), `files_with_matches`, or `count`. Note that ripgrep syntax requires escaping braces (`\\{ \\}`) and setting `multiline: true` for cross-line matches. Results are capped for speed (showing 'at least' counts if truncated), and formatting follows standard ripgrep style with `:` for matches and `-` for context.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pattern": {
+                            "type": "string",
+                            "description": "The regular expression pattern to search for in file contents"
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": "File or directory to search in (rg pattern -- PATH). Defaults to Cursor workspace root."
+                        },
+                        "glob": {
+                            "type": "string",
+                            "description": "Glob pattern to filter files (e.g. \"*.js\", \"*.{ts,tsx}\") - maps to rg --glob"
+                        },
+                        "output_mode": {
+                            "type": "string",
+                            "enum": [
+                                "content",
+                                "files_with_matches",
+                                "count"
+                            ],
+                            "description": "Output mode: \"content\" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), \"files_with_matches\" shows file paths (supports head_limit), \"count\" shows match counts (supports head_limit). Defaults to \"content\"."
+                        },
+                        "-B": {
+                            "type": "number",
+                            "description": "Number of lines to show before each match (rg -B). Requires output_mode: \"content\", ignored otherwise."
+                        },
+                        "-A": {
+                            "type": "number",
+                            "description": "Number of lines to show after each match (rg -A). Requires output_mode: \"content\", ignored otherwise."
+                        },
+                        "-C": {
+                            "type": "number",
+                            "description": "Number of lines to show before and after each match (rg -C). Requires output_mode: \"content\", ignored otherwise."
+                        },
+                        "-i": {
+                            "type": "boolean",
+                            "description": "Case insensitive search (rg -i) Defaults to false"
+                        },
+                        "type": {
+                            "type": "string",
+                            "description": "File type to search (rg --type). Common types: js, py, rust, go, java, etc. More efficient than include for standard file types."
+                        },
+                        "head_limit": {
+                            "type": "number",
+                            "description": "Limit output to first N lines/entries, equivalent to \"| head -N\". Works across all output modes: content (limits output lines), files_with_matches (limits file paths), count (limits count entries). When unspecified, shows all results from ripgrep."
+                        },
+                        "multiline": {
+                            "type": "boolean",
+                            "description": "Enable multiline mode where . matches newlines and patterns can span lines (rg -U --multiline-dotall). Default: false."
+                        }
+                    },
+                    "required": [
+                        "pattern"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "StrReplace",
+                "description": "Performs exact string replacements in files.\n\nUsage:\n- When editing text, ensure you preserve the exact indentation (tabs/spaces) as it appears before. The edit will FAIL if old_string is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use replace_all to change every instance of old_string. NEVER escape `old_string` or `new_string`, that would break the exact literal text requirement. If you are confused why your edit seems to be correct and is not working, try removing all escape characters.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The absolute path to the file to modify"
+                        },
+                        "old_string": {
+                            "type": "string",
+                            "description": "The text to replace"
+                        },
+                        "new_string": {
+                            "type": "string",
+                            "description": "The text to replace it with (must be different from old_string)"
+                        },
+                        "replace_all": {
+                            "type": "boolean",
+                            "description": "Replace all occurrences of old_string (default false)"
+                        }
+                    },
+                    "required": [
+                        "path",
+                        "old_string",
+                        "new_string"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "Write",
+                "description": "Writes a file to the local filesystem.\n\nUsage:\n- This tool will overwrite the existing file if there is one at the provided path.\n- If this is an existing file, you MUST use the read_file tool first to read the file's contents before writing.\nDo not proactively create new files unless specified by the user.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The absolute path to the file to modify"
+                        },
+                        "contents": {
+                            "type": "string",
+                            "description": "The contents to write to the file"
+                        }
+                    },
+                    "required": [
+                        "path",
+                        "contents"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "EditNotebook",
+                "description": "Use ONLY this tool to edit Jupyter notebooks. To edit an existing cell, set **is_new_cell** to false and provide the **old_string** to be replaced by **new_string** (one occurrence only). To create a new cell, set **is_new_cell** to true, provide the **new_string**, and leave **old_string** empty. To delete content, use an empty **new_string**. Cell deletion is not supported.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_notebook": {
+                            "type": "string",
+                            "description": "The path to the notebook file you want to edit. You can use either a relative path in the workspace or an absolute path. If an absolute path is provided, it will be preserved as is."
+                        },
+                        "cell_idx": {
+                            "type": "number",
+                            "description": "The index of the cell to edit (0-based)"
+                        },
+                        "is_new_cell": {
+                            "type": "boolean",
+                            "description": "If true, a new cell will be created at the specified cell index. If false, the cell at the specified cell index will be edited."
+                        },
+                        "cell_language": {
+                            "type": "string",
+                            "description": "The language of the cell to edit. Should be STRICTLY one of these: 'python', 'markdown', 'javascript', 'typescript', 'r', 'sql', 'shell', 'raw' or 'other'."
+                        },
+                        "old_string": {
+                            "type": "string",
+                            "description": "The text to replace (must be unique within the cell, and must match the cell contents exactly, including all whitespace and indentation)."
+                        },
+                        "new_string": {
+                            "type": "string",
+                            "description": "The edited text to replace the old_string or the content for the new cell."
+                        }
+                    },
+                    "required": [
+                        "target_notebook",
+                        "cell_idx",
+                        "is_new_cell",
+                        "cell_language",
+                        "old_string",
+                        "new_string"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "Read",
+                "description": "Reads a file from the local filesystem. It is okay to read a file that does not exist; an error will be returned.\n- Lines in the output are numbered starting at 1, using following format: LINE_NUMBER|LINE_CONTENT\n- You should only read one file in a single response. \n- If the file is empty, you will receive 'File is empty.'\n\nImage Support:\n- This tool can also read image files when called with the appropriate path.\n- Supported image formats: jpeg/jpg, png, gif, webp.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The absolute path of the file to read."
+                        },
+                        "offset": {
+                            "type": "number",
+                            "description": "The line number to start reading from. Only provide if the file is too large to read at once."
+                        },
+                        "limit": {
+                            "type": "number",
+                            "description": "The number of lines to read. Only provide if the file is too large to read at once."
+                        }
+                    },
+                    "required": [
+                        "path"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "ReadLints",
+                "description": "Read and display linter errors from the current workspace. You can provide paths to specific files or directories, or omit the argument to get diagnostics for all files.\n\n- NEVER call this tool on a file unless you've edited it or are about to edit it",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "paths": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "Optional. An array of paths to files or directories to read linter errors for. You can use either relative paths in the workspace or absolute paths. If provided, returns diagnostics for the specified files/directories only. If not provided, returns diagnostics for all files in the workspace."
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "WebSearch",
+                "description": "Search the web for real-time information about any topic. Use this tool when you need up-to-date information that might not be available in your training data, or when you need to verify current facts. The search results will include relevant snippets and URLs from web pages. This is particularly useful for questions about current events, technology updates, or any topic that requires recent information.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_term": {
+                            "type": "string",
+                            "description": "The search term to look up on the web. Be specific and include relevant keywords for better results. For technical queries, include version numbers or dates if relevant."
+                        },
+                        "explanation": {
+                            "type": "string",
+                            "description": "One sentence explanation as to why this tool is being used, and how it contributes to the goal."
+                        }
+                    },
+                    "required": [
+                        "search_term"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "list_mcp_resources",
+                "description": "List available resources from configured MCP servers. Each returned resource will include all standard MCP resource fields plus a 'server' field indicating which server the resource belongs to.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "server": {
+                            "type": "string",
+                            "description": "Optional server identifier to filter resources by. If not provided, resources from all servers will be returned."
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "fetch_mcp_resource",
+                "description": "Reads a specific resource from an MCP server, identified by server name and resource URI. Optionally, set downloadPath (relative to the workspace) to save the resource to disk; when set, the resource will be downloaded and not returned to the model.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "server": {
+                            "type": "string",
+                            "description": "The MCP server identifier"
+                        },
+                        "uri": {
+                            "type": "string",
+                            "description": "The resource URI to read"
+                        },
+                        "downloadPath": {
+                            "type": "string",
+                            "description": "Optional relative path in the workspace to save the resource to. When set, the resource is written to disk and is not returned to the model."
+                        }
+                    },
+                    "required": [
+                        "server",
+                        "uri"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "SwitchMode",
+                "description": "# Mode Switching Protocol Proactively switch to **Plan Mode** when tasks become complex or ambiguous. Stay in the current mode for clear, simple tasks. All switches require user consent. --- ## 1. Switch to [Plan Mode] When: * **Architectural Decisions:** Multiple valid approaches exist with different trade-offs. * **High Complexity:** The task involves large refactors, migrations, or many files. * **Ambiguity:** Requirements are unclear or you have multiple clarifying questions. * **Stuck/Debugging:** Previous attempts failed, or a new strategy is needed. ## 2. Stay in Current Mode If: * The task is simple, clear, and quick. * You are mid-implementation and making steady progress. * You only have minor clarifying questions. ## 3. Mode Definitions * **Agent Mode:** Default; full tool access for implementation. (Cannot switch to) * **Plan Mode:** Read-only; collaborative design and strategy. **(Switchable)** * **Debug Mode:** Troubleshooting and investigating bugs. (Cannot switch to) * **Ask Mode:** Read-only; code exploration and Q&A. (Cannot switch to) ## 4. Operational Rules 1.  **Be Proactive:** Suggest a switch as soon as complexity emerges. 2.  **Brief Explanation:** State *why* the switch is necessary. 3.  **Get Consent:** Do not change modes until the user approves.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_mode_id": {
+                            "type": "string",
+                            "description": "The mode to switch to. Allowed values: 'plan'."
+                        },
+                        "explanation": {
+                            "type": "string",
+                            "description": "Optional explanation for why the mode switch is requested. This helps the user understand why you're switching modes."
+                        }
+                    },
+                    "required": [
+                        "target_mode_id"
+                    ]
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Test Page</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1a; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: #2d2d2d; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h1, h2 { color: #4CAF50; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        canvas { background: #fff; border-radius: 4px; }
+        .code-block { background: #000; padding: 15px; border-radius: 4px; overflow-x: auto; font-family: 'Courier New', Courier, monospace; }
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; background: #4CAF50; color: white; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Coding Ability Test Dashboard</h1>
+        <p>Server Time: {{ server_time }} <span class="status-badge">Live</span></p>
+
+        <div class="grid">
+            <div class="card" style="position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h2>Live Physics Sandbox</h2>
+                    <div>
+                        <input type="checkbox" id="chaosToggle">
+                        <label for="chaosToggle" style="cursor: pointer; user-select: none; color: #e0e0e0;">Chaos Mode</label>
+                    </div>
+                </div>
+                <div id="perfOverlay" style="position: absolute; top: 60px; left: 30px; background: rgba(0, 0, 0, 0.6); padding: 5px 10px; border-radius: 4px; pointer-events: none; font-family: monospace; color: #0f0; z-index: 10;">
+                    <div>FPS: <span id="fpsVal">--</span></div>
+                    <div>Worker: <span id="workerVal">--</span> ms</div>
+                </div>
+                <canvas id="physicsCanvas" style="width: 100%; height: 300px; background: #222; border-radius: 4px; display: block;"></canvas>
+            </div>
+            <div class="card">
+                <h2>Recursive Data Processing</h2>
+                <p>Fibonacci Sequence (Server-side Computed):</p>
+                <div class="code-block">
+                    {{ fib_sequence | join(', ') }}
+                </div>
+                <p style="margin-top: 20px;">Matrix Multiplication (Client-side):</p>
+                <div id="matrixResult" class="code-block"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Dynamic Data Table</h2>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="text-align: left; border-bottom: 1px solid #444;">
+                            <th>Index</th>
+                            <th>X-Value</th>
+                            <th>Y-Value (Computed)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pt in data_points %}
+                        <tr style="border-bottom: 1px solid #333;">
+                            <td>{{ loop.index }}</td>
+                            <td>{{ pt.x }}</td>
+                            <td>{{ pt.y }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script id="data-points-data" type="application/json">
+        {{ data_points | tojson | safe }}
+    </script>
+
+    <script>
+        // Physics Sandbox Implementation
+        const canvas = document.getElementById('physicsCanvas');
+        const ctx = canvas.getContext('2d');
+        const chaosToggle = document.getElementById('chaosToggle');
+        const fpsVal = document.getElementById('fpsVal');
+        const workerVal = document.getElementById('workerVal');
+
+        // Resize canvas to display size
+        function resize() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            if (typeof worker !== 'undefined') worker.postMessage({ type: 'resize', width: canvas.width, height: canvas.height });
+        }
+        window.addEventListener('resize', resize);
+
+        // Worker Code as a Blob
+        const workerCode = `
+            let particles = [];
+            let width = 0;
+            let height = 0;
+            
+            function initParticles(count) {
+                particles = [];
+                for (let i = 0; i < count; i++) {
+                    particles.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: (Math.random() - 0.5) * 4,
+                        radius: Math.random() * 5 + 2,
+                        color: 'hsl(' + (Math.random() * 360) + ', 70%, 50%)',
+                        mass: 1
+                    });
+                }
+            }
+
+            self.onmessage = function(e) {
+                const { type } = e.data;
+                
+                if (type === 'init') {
+                    width = e.data.width;
+                    height = e.data.height;
+                    initParticles(e.data.count);
+                } else if (type === 'resize') {
+                    width = e.data.width;
+                    height = e.data.height;
+                } else if (type === 'step') {
+                    const start = performance.now();
+                    
+                    // Physics Loop
+                    for (let i = 0; i < particles.length; i++) {
+                        let p = particles[i];
+                        
+                        // Gravity
+                        p.vy += 0.1;
+                        
+                        // Move
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        
+                        // Wall Collisions
+                        if (p.x - p.radius < 0) { p.x = p.radius; p.vx *= -0.8; }
+                        if (p.x + p.radius > width) { p.x = width - p.radius; p.vx *= -0.8; }
+                        if (p.y - p.radius < 0) { p.y = p.radius; p.vy *= -0.8; }
+                        if (p.y + p.radius > height) { p.y = height - p.radius; p.vy *= -0.8; }
+                        
+                        // Particle Collisions
+                        for (let j = i + 1; j < particles.length; j++) {
+                            let p2 = particles[j];
+                            let dx = p2.x - p.x;
+                            let dy = p2.y - p.y;
+                            let dist = Math.sqrt(dx*dx + dy*dy);
+                            let minDist = p.radius + p2.radius;
+                            
+                            if (dist < minDist) {
+                                let angle = Math.atan2(dy, dx);
+                                let sin = Math.sin(angle);
+                                let cos = Math.cos(angle);
+                                
+                                let vx1 = p.vx * cos + p.vy * sin;
+                                let vy1 = p.vy * cos - p.vx * sin;
+                                let vx2 = p2.vx * cos + p2.vy * sin;
+                                let vy2 = p2.vy * cos - p2.vx * sin;
+                                
+                                let temp = vx1;
+                                vx1 = vx2;
+                                vx2 = temp;
+                                
+                                p.vx = vx1 * cos - vy1 * sin;
+                                p.vy = vy1 * cos + vx1 * sin;
+                                p2.vx = vx2 * cos - vy2 * sin;
+                                p2.vy = vy2 * cos + vx2 * sin;
+                                
+                                let overlap = minDist - dist;
+                                let ax = overlap * cos * 0.5;
+                                let ay = overlap * sin * 0.5;
+                                p.x -= ax;
+                                p.y -= ay;
+                                p2.x += ax;
+                                p2.y += ay;
+                            }
+                        }
+                    }
+                    
+                    const end = performance.now();
+                    self.postMessage({ particles, latency: end - start });
+                }
+            };
+        `;
+
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(blob));
+
+        // Init
+        resize();
+        worker.postMessage({ type: 'init', width: canvas.width, height: canvas.height, count: 50 });
+
+        // Chaos Mode
+        chaosToggle.addEventListener('change', (e) => {
+            const count = e.target.checked ? 500 : 50;
+            worker.postMessage({ type: 'init', width: canvas.width, height: canvas.height, count });
+        });
+
+        // Animation Loop
+        let lastTime = 0;
+        let pendingWorker = false;
+
+        worker.onmessage = function(e) {
+            const { particles, latency } = e.data;
+            workerVal.innerText = latency.toFixed(2);
+            pendingWorker = false;
+            
+            // Draw
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let p of particles) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+            }
+        };
+
+        function loop(timestamp) {
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+            fpsVal.innerText = Math.round(1000 / dt);
+
+            if (!pendingWorker) {
+                pendingWorker = true;
+                worker.postMessage({ type: 'step' });
+            }
+            requestAnimationFrame(loop);
+        }
+
+        requestAnimationFrame(loop);
+
+        // Complex Client-side logic: Matrix Multiplication
+        function multiplyMatrices(m1, m2) {
+            const result = [];
+            for (let i = 0; i < m1.length; i++) {
+                result[i] = [];
+                for (let j = 0; j < m2[0].length; j++) {
+                    let sum = 0;
+                    for (let k = 0; k < m1[0].length; k++) {
+                        sum += m1[i][k] * m2[k][j];
+                    }
+                    result[i][j] = sum;
+                }
+            }
+            return result;
+        }
+
+        const m1 = [[1, 2], [3, 4]];
+        const m2 = [[5, 6], [7, 8]];
+        const res = multiplyMatrices(m1, m2);
+        document.getElementById('matrixResult').innerText = JSON.stringify(res);
+    </script>
+</body>
+</html>

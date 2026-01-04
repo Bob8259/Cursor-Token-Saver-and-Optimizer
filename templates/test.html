@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Test Page</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1a; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: #2d2d2d; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h1, h2 { color: #4CAF50; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        canvas { background: #fff; border-radius: 4px; }
+        .code-block { background: #000; padding: 15px; border-radius: 4px; overflow-x: auto; font-family: 'Courier New', Courier, monospace; }
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; background: #4CAF50; color: white; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Coding Ability Test Dashboard</h1>
+        <p>Server Time: {{ server_time }} <span class="status-badge">Live</span></p>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Complex Waveform Analysis</h2>
+                <canvas id="waveChart"></canvas>
+            </div>
+            <div class="card">
+                <h2>Recursive Data Processing</h2>
+                <p>Fibonacci Sequence (Server-side Computed):</p>
+                <div class="code-block">
+                    {{ fib_sequence | join(', ') }}
+                </div>
+                <p style="margin-top: 20px;">Matrix Multiplication (Client-side):</p>
+                <div id="matrixResult" class="code-block"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Dynamic Data Table</h2>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="text-align: left; border-bottom: 1px solid #444;">
+                            <th>Index</th>
+                            <th>X-Value</th>
+                            <th>Y-Value (Computed)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pt in data_points %}
+                        <tr style="border-bottom: 1px solid #333;">
+                            <td>{{ loop.index }}</td>
+                            <td>{{ pt.x }}</td>
+                            <td>{{ pt.y }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script id="data-points-data" type="application/json">
+        {{ data_points | tojson | safe }}
+    </script>
+
+    <script>
+        // Chart.js implementation
+        const ctx = document.getElementById('waveChart').getContext('2d');
+        const dataPoints = JSON.parse(document.getElementById('data-points-data').textContent);
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dataPoints.map(p => p.x),
+                datasets: [{
+                    label: 'Complex Wave Function',
+                    data: dataPoints.map(p => p.y),
+                    borderColor: '#4CAF50',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { ticks: { color: '#666' } },
+                    y: { ticks: { color: '#666' } }
+                }
+            }
+        });
+
+        // Complex Client-side logic: Matrix Multiplication
+        function multiplyMatrices(m1, m2) {
+            const result = [];
+            for (let i = 0; i < m1.length; i++) {
+                result[i] = [];
+                for (let j = 0; j < m2[0].length; j++) {
+                    let sum = 0;
+                    for (let k = 0; k < m1[0].length; k++) {
+                        sum += m1[i][k] * m2[k][j];
+                    }
+                    result[i][j] = sum;
+                }
+            }
+            return result;
+        }
+
+        const m1 = [[1, 2], [3, 4]];
+        const m2 = [[5, 6], [7, 8]];
+        const res = multiplyMatrices(m1, m2);
+        document.getElementById('matrixResult').innerText = JSON.stringify(res);
+    </script>
+</body>
+</html>
