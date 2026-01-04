@@ -318,4 +318,4 @@ def proxy_chat():
     return Response(stream_with_context(generate()), content_type="text/event-stream")
 
 if __name__ == "__main__":
-    app.run(port=5000,debug=True)
+    app.run(port=5000)
