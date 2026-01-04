@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Complex Test Page</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1a; color: #e0e0e0; margin: 0; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; }
@@ -22,19 +21,21 @@
         <p>Server Time: {{ server_time }} <span class="status-badge">Live</span></p>
 
         <div class="grid">
-            <div class="card" style="position: relative;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h2>Live Physics Sandbox</h2>
-                    <div>
-                        <input type="checkbox" id="chaosToggle">
-                        <label for="chaosToggle" style="cursor: pointer; user-select: none; color: #e0e0e0;">Chaos Mode</label>
+            <div class="card">
+                <h2>Live Physics Sandbox</h2>
+                <div style="position: relative;">
+                    <canvas id="physicsCanvas" style="display: block; width: 100%; height: 400px; background: #1a1a1a; border-radius: 4px;"></canvas>
+                    <div id="perfMonitor" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: #0f0; padding: 10px; font-family: monospace; pointer-events: none; border-radius: 4px;">
+                        FPS: <span id="fpsDisplay">0</span><br>
+                        Worker Latency: <span id="latencyDisplay">0</span> ms
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="chaosToggle" style="margin-right: 10px;">
+                            <span>Chaos Mode (500 Particles)</span>
+                        </label>
                     </div>
                 </div>
-                <div id="perfOverlay" style="position: absolute; top: 60px; left: 30px; background: rgba(0, 0, 0, 0.6); padding: 5px 10px; border-radius: 4px; pointer-events: none; font-family: monospace; color: #0f0; z-index: 10;">
-                    <div>FPS: <span id="fpsVal">--</span></div>
-                    <div>Worker: <span id="workerVal">--</span> ms</div>
-                </div>
-                <canvas id="physicsCanvas" style="width: 100%; height: 300px; background: #222; border-radius: 4px; display: block;"></canvas>
             </div>
             <div class="card">
                 <h2>Recursive Data Processing</h2>
@@ -72,166 +73,177 @@
         </div>
     </div>
 
-    <script id="data-points-data" type="application/json">
-        {{ data_points | tojson | safe }}
-    </script>
-
     <script>
         // Physics Sandbox Implementation
         const canvas = document.getElementById('physicsCanvas');
         const ctx = canvas.getContext('2d');
-        const chaosToggle = document.getElementById('chaosToggle');
-        const fpsVal = document.getElementById('fpsVal');
-        const workerVal = document.getElementById('workerVal');
+        const perfMonitor = {
+            fps: document.getElementById('fpsDisplay'),
+            latency: document.getElementById('latencyDisplay'),
+            lastFrameTime: performance.now(),
+            frameCount: 0,
+            lastFpsUpdate: performance.now()
+        };
+        
+        let worker;
 
-        // Resize canvas to display size
-        function resize() {
+        function resizeCanvas() {
             canvas.width = canvas.clientWidth;
             canvas.height = canvas.clientHeight;
-            if (typeof worker !== 'undefined') worker.postMessage({ type: 'resize', width: canvas.width, height: canvas.height });
+            if (worker) {
+                worker.postMessage({ type: 'resize', width: canvas.width, height: canvas.height });
+            }
         }
-        window.addEventListener('resize', resize);
-
-        // Worker Code as a Blob
+        window.addEventListener('resize', resizeCanvas);
+        
         const workerCode = `
             let particles = [];
+            const gravity = 0.5;
+            const friction = 0.99;
             let width = 0;
             let height = 0;
             
-            function initParticles(count) {
+            function initParticles(count, w, h) {
+                width = w;
+                height = h;
                 particles = [];
                 for (let i = 0; i < count; i++) {
                     particles.push({
-                        x: Math.random() * width,
-                        y: Math.random() * height,
-                        vx: (Math.random() - 0.5) * 4,
-                        vy: (Math.random() - 0.5) * 4,
-                        radius: Math.random() * 5 + 2,
-                        color: 'hsl(' + (Math.random() * 360) + ', 70%, 50%)',
+                        x: Math.random() * (width - 20) + 10,
+                        y: Math.random() * (height - 20) + 10,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 0.5) * 10,
+                        radius: Math.random() * 5 + 5,
+                        color: 'hsl(' + Math.random() * 360 + ', 70%, 50%)',
                         mass: 1
                     });
                 }
             }
 
+            function resolveCollision(p1, p2) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < p1.radius + p2.radius) {
+                    const nx = dx / distance;
+                    const ny = dy / distance;
+                    const dvx = p2.vx - p1.vx;
+                    const dvy = p2.vy - p1.vy;
+                    const velAlongNormal = dvx * nx + dvy * ny;
+
+                    if (velAlongNormal > 0) return;
+
+                    const restitution = 0.9;
+                    const j = -(1 + restitution) * velAlongNormal;
+                    const impulse = j / 2;
+
+                    p1.vx -= impulse * nx;
+                    p1.vy -= impulse * ny;
+                    p2.vx += impulse * nx;
+                    p2.vy += impulse * ny;
+                    
+                    const overlap = (p1.radius + p2.radius - distance) / 2;
+                    p1.x -= overlap * nx;
+                    p1.y -= overlap * ny;
+                    p2.x += overlap * nx;
+                    p2.y += overlap * ny;
+                }
+            }
+
             self.onmessage = function(e) {
-                const { type } = e.data;
+                const { type, data } = e.data;
                 
-                if (type === 'init') {
-                    width = e.data.width;
-                    height = e.data.height;
-                    initParticles(e.data.count);
+                if (type === 'init' || type === 'reset') {
+                    initParticles(data.count, data.width, data.height);
                 } else if (type === 'resize') {
-                    width = e.data.width;
-                    height = e.data.height;
+                    width = data.width;
+                    height = data.height;
                 } else if (type === 'step') {
                     const start = performance.now();
                     
-                    // Physics Loop
                     for (let i = 0; i < particles.length; i++) {
                         let p = particles[i];
-                        
-                        // Gravity
-                        p.vy += 0.1;
-                        
-                        // Move
+                        p.vy += gravity;
+                        p.vx *= friction;
+                        p.vy *= friction;
                         p.x += p.vx;
                         p.y += p.vy;
+
+                        if (p.x - p.radius < 0) {
+                            p.x = p.radius;
+                            p.vx *= -0.8;
+                        } else if (p.x + p.radius > width) {
+                            p.x = width - p.radius;
+                            p.vx *= -0.8;
+                        }
                         
-                        // Wall Collisions
-                        if (p.x - p.radius < 0) { p.x = p.radius; p.vx *= -0.8; }
-                        if (p.x + p.radius > width) { p.x = width - p.radius; p.vx *= -0.8; }
-                        if (p.y - p.radius < 0) { p.y = p.radius; p.vy *= -0.8; }
-                        if (p.y + p.radius > height) { p.y = height - p.radius; p.vy *= -0.8; }
-                        
-                        // Particle Collisions
+                        if (p.y - p.radius < 0) {
+                            p.y = p.radius;
+                            p.vy *= -0.8;
+                        } else if (p.y + p.radius > height) {
+                            p.y = height - p.radius;
+                            p.vy *= -0.8;
+                        }
+                    }
+
+                    for (let i = 0; i < particles.length; i++) {
                         for (let j = i + 1; j < particles.length; j++) {
-                            let p2 = particles[j];
-                            let dx = p2.x - p.x;
-                            let dy = p2.y - p.y;
-                            let dist = Math.sqrt(dx*dx + dy*dy);
-                            let minDist = p.radius + p2.radius;
-                            
-                            if (dist < minDist) {
-                                let angle = Math.atan2(dy, dx);
-                                let sin = Math.sin(angle);
-                                let cos = Math.cos(angle);
-                                
-                                let vx1 = p.vx * cos + p.vy * sin;
-                                let vy1 = p.vy * cos - p.vx * sin;
-                                let vx2 = p2.vx * cos + p2.vy * sin;
-                                let vy2 = p2.vy * cos - p2.vx * sin;
-                                
-                                let temp = vx1;
-                                vx1 = vx2;
-                                vx2 = temp;
-                                
-                                p.vx = vx1 * cos - vy1 * sin;
-                                p.vy = vy1 * cos + vx1 * sin;
-                                p2.vx = vx2 * cos - vy2 * sin;
-                                p2.vy = vy2 * cos + vx2 * sin;
-                                
-                                let overlap = minDist - dist;
-                                let ax = overlap * cos * 0.5;
-                                let ay = overlap * sin * 0.5;
-                                p.x -= ax;
-                                p.y -= ay;
-                                p2.x += ax;
-                                p2.y += ay;
-                            }
+                            resolveCollision(particles[i], particles[j]);
                         }
                     }
                     
-                    const end = performance.now();
-                    self.postMessage({ particles, latency: end - start });
+                    const duration = performance.now() - start;
+                    self.postMessage({ type: 'update', particles: particles, duration: duration, timestamp: data.timestamp });
                 }
             };
         `;
 
         const blob = new Blob([workerCode], { type: 'application/javascript' });
-        const worker = new Worker(URL.createObjectURL(blob));
-
-        // Init
-        resize();
-        worker.postMessage({ type: 'init', width: canvas.width, height: canvas.height, count: 50 });
-
-        // Chaos Mode
-        chaosToggle.addEventListener('change', (e) => {
-            const count = e.target.checked ? 500 : 50;
-            worker.postMessage({ type: 'init', width: canvas.width, height: canvas.height, count });
+        worker = new Worker(URL.createObjectURL(blob));
+        
+        resizeCanvas();
+        worker.postMessage({ 
+            type: 'init', 
+            data: { count: 50, width: canvas.width, height: canvas.height } 
         });
 
-        // Animation Loop
-        let lastTime = 0;
-        let pendingWorker = false;
+        document.getElementById('chaosToggle').addEventListener('change', (e) => {
+            const count = e.target.checked ? 500 : 50;
+            worker.postMessage({ 
+                type: 'reset', 
+                data: { count: count, width: canvas.width, height: canvas.height } 
+            });
+        });
 
-        worker.onmessage = function(e) {
-            const { particles, latency } = e.data;
-            workerVal.innerText = latency.toFixed(2);
-            pendingWorker = false;
-            
-            // Draw
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let p of particles) {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = p.color;
-                ctx.fill();
+        function loop() {
+            const now = performance.now();
+            perfMonitor.frameCount++;
+            if (now - perfMonitor.lastFpsUpdate >= 1000) {
+                perfMonitor.fps.innerText = perfMonitor.frameCount;
+                perfMonitor.frameCount = 0;
+                perfMonitor.lastFpsUpdate = now;
             }
-        };
-
-        function loop(timestamp) {
-            const dt = timestamp - lastTime;
-            lastTime = timestamp;
-            fpsVal.innerText = Math.round(1000 / dt);
-
-            if (!pendingWorker) {
-                pendingWorker = true;
-                worker.postMessage({ type: 'step' });
-            }
+            worker.postMessage({ type: 'step', data: { timestamp: now } });
             requestAnimationFrame(loop);
         }
 
-        requestAnimationFrame(loop);
+        worker.onmessage = function(e) {
+            const { type, particles, duration } = e.data;
+            if (type === 'update') {
+                perfMonitor.latency.innerText = duration.toFixed(2);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (const p of particles) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+        };
+
+        loop();
 
         // Complex Client-side logic: Matrix Multiplication
         function multiplyMatrices(m1, m2) {

@@ -4,7 +4,14 @@ import requests
 import datetime
 import glob
 import time
-from flask import Flask, request, Response, stream_with_context, render_template, jsonify
+from flask import (
+    Flask,
+    request,
+    Response,
+    stream_with_context,
+    render_template,
+    jsonify,
+)
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,12 +27,15 @@ OLD_TOOLS_FILE = "optimized_tools_old.json"
 
 app = Flask(__name__)
 
+
 def log_transaction(request_body, raw_chunks, start_time, end_time):
     """Saves the request and all raw chunks received from the model."""
     if not os.path.exists("logs"):
         os.makedirs("logs")
 
-    timestamp_str = datetime.datetime.fromtimestamp(start_time).strftime("%Y%m%d-%H%M%S")
+    timestamp_str = datetime.datetime.fromtimestamp(start_time).strftime(
+        "%Y%m%d-%H%M%S"
+    )
     filepath = os.path.join("logs", f"log_{timestamp_str}.json")
 
     with open(filepath, "w", encoding="utf-8") as f:
@@ -36,12 +46,13 @@ def log_transaction(request_body, raw_chunks, start_time, end_time):
                 "start_time_raw": start_time,
                 "end_time_raw": end_time,
                 "request_body": request_body,
-                "raw_chunks": raw_chunks  # This stores the exact data received
+                "raw_chunks": raw_chunks,  # This stores the exact data received
             },
             f,
             indent=4,
-            ensure_ascii=False
+            ensure_ascii=False,
         )
+
 
 def get_optimized_tools(tools_file):
     try:
@@ -49,31 +60,40 @@ def get_optimized_tools(tools_file):
         if tools_file == "new":
             with open(NEW_TOOLS_FILE, "r", encoding="utf-8") as f:
                 content = json.load(f)
-                return content.get("tools", content) if isinstance(content, dict) else content
+                return (
+                    content.get("tools", content)
+                    if isinstance(content, dict)
+                    else content
+                )
         elif tools_file == "old":
             with open(OLD_TOOLS_FILE, "r", encoding="utf-8") as f:
                 content = json.load(f)
-                return content.get("tools", content) if isinstance(content, dict) else content
+                return (
+                    content.get("tools", content)
+                    if isinstance(content, dict)
+                    else content
+                )
     except FileNotFoundError:
         return None
+
 
 @app.route("/")
 def index():
     log_files = glob.glob("logs/log_*.json")
     log_files.sort(reverse=True)
-    
+
     usage_history = []
     for filepath in log_files:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 log_data = json.load(f)
-                
+
             filename = os.path.basename(filepath)
             start_time = log_data.get("start_time", "")
             end_time = log_data.get("end_time", "")
             request_body = log_data.get("request_body", {})
             model = request_body.get("model", "unknown")
-            
+
             # Extract usage from raw_chunks
             usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
             raw_chunks = log_data.get("raw_chunks", [])
@@ -86,11 +106,11 @@ def index():
                             break
                     except:
                         continue
-            
+
             # Use raw times for duration if available, else try to parse ISO strings
             start_raw = log_data.get("start_time_raw")
             end_raw = log_data.get("end_time_raw")
-            
+
             if start_raw and end_raw:
                 duration = round(end_raw - start_raw, 2)
             else:
@@ -102,84 +122,109 @@ def index():
                 except:
                     duration = 0
 
-            usage_history.append({
-                "filename": filename,
-                "start_time": start_time,
-                "end_time": end_time,
-                "model": model,
-                "input": usage.get("prompt_tokens") or usage.get("input_tokens") or 0,
-                "output": usage.get("completion_tokens") or usage.get("output_tokens") or 0,
-                "total": usage.get("total_tokens") or (usage.get("input_tokens", 0) + usage.get("output_tokens", 0)) or 0,
-                "duration": duration
-            })
+            usage_history.append(
+                {
+                    "filename": filename,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "model": model,
+                    "input": usage.get("prompt_tokens")
+                    or usage.get("input_tokens")
+                    or 0,
+                    "output": usage.get("completion_tokens")
+                    or usage.get("output_tokens")
+                    or 0,
+                    "total": usage.get("total_tokens")
+                    or (usage.get("input_tokens", 0) + usage.get("output_tokens", 0))
+                    or 0,
+                    "duration": duration,
+                }
+            )
         except Exception as e:
             print(f"Error parsing {filepath}: {e}")
 
     return render_template("index.html", history=usage_history)
-    
+
+
 @app.route("/test")
 def test_page():
     # Complex logic to demonstrate coding ability
     import math
     import random
-    
+
     # Generate some synthetic data for a complex visualization
     data_points = []
     for i in range(100):
         x = i / 10.0
         # A complex wave function
-        y = math.sin(x) * math.cos(x * 0.5) + math.log(x + 1) * 0.5 + random.uniform(-0.1, 0.1)
+        y = (
+            math.sin(x) * math.cos(x * 0.5)
+            + math.log(x + 1) * 0.5
+            + random.uniform(-0.1, 0.1)
+        )
         data_points.append({"x": round(x, 2), "y": round(y, 4)})
-        
+
     # Some recursive calculation
     def fibonacci(n):
-        if n <= 1: return n
-        return fibonacci(n-1) + fibonacci(n-2)
-    
+        if n <= 1:
+            return n
+        return fibonacci(n - 1) + fibonacci(n - 2)
+
     fib_sequence = [fibonacci(i) for i in range(10)]
-    
-    return render_template("test.html", 
-                           data_points=data_points, 
-                           fib_sequence=fib_sequence,
-                           server_time=datetime.datetime.now().isoformat())
+
+    return render_template(
+        "test.html",
+        data_points=data_points,
+        fib_sequence=fib_sequence,
+        server_time=datetime.datetime.now().isoformat(),
+    )
+
 
 @app.route("/answer")
 def answer_page():
     # Complex logic to demonstrate coding ability
     import math
     import random
-    
+
     # Generate some synthetic data for a complex visualization
     data_points = []
     for i in range(100):
         x = i / 10.0
         # A complex wave function
-        y = math.sin(x) * math.cos(x * 0.5) + math.log(x + 1) * 0.5 + random.uniform(-0.1, 0.1)
+        y = (
+            math.sin(x) * math.cos(x * 0.5)
+            + math.log(x + 1) * 0.5
+            + random.uniform(-0.1, 0.1)
+        )
         data_points.append({"x": round(x, 2), "y": round(y, 4)})
-        
+
     # Some recursive calculation
     def fibonacci(n):
-        if n <= 1: return n
-        return fibonacci(n-1) + fibonacci(n-2)
-    
+        if n <= 1:
+            return n
+        return fibonacci(n - 1) + fibonacci(n - 2)
+
     fib_sequence = [fibonacci(i) for i in range(10)]
-    
-    return render_template("answer.html", 
-                           data_points=data_points, 
-                           fib_sequence=fib_sequence,
-                           server_time=datetime.datetime.now().isoformat())
+
+    return render_template(
+        "answer.html",
+        data_points=data_points,
+        fib_sequence=fib_sequence,
+        server_time=datetime.datetime.now().isoformat(),
+    )
+
 
 @app.route("/log/<filename>")
 def get_log_detail(filename):
     filepath = os.path.join("logs", filename)
     if not os.path.exists(filepath):
         return jsonify({"error": "File not found"}), 404
-    
+
     with open(filepath, "r", encoding="utf-8") as f:
         log_data = json.load(f)
-    
+
     request_messages = log_data.get("request_body", {}).get("messages", [])
-    
+
     # Reconstruct response content from chunks
     response_content = ""
     for chunk in log_data.get("raw_chunks", []):
@@ -193,17 +238,19 @@ def get_log_detail(filename):
                         response_content += delta["content"]
             except:
                 continue
-                
-    return jsonify({
-        "request_messages": request_messages,
-        "response_content": response_content
-    })
+
+    return jsonify(
+        {"request_messages": request_messages, "response_content": response_content}
+    )
+
 
 @app.route("/v1/chat/completions", methods=["POST"])
 def proxy_chat():
     data = request.json
     messages = data.get("messages", [])
-    print(f"Debug: Received a request to /v1/chat/completions with {len(messages)} messages")
+    print(
+        f"Debug: Received a request to /v1/chat/completions with {len(messages)} messages"
+    )
 
     if not messages:
         return {"error": "No messages provided"}, 400
@@ -249,7 +296,8 @@ def proxy_chat():
 
     # Robust check for the function name
     has_terminal_cmd = any(
-        isinstance(tool, dict) and tool.get("function", {}).get("name") == "search_replace"
+        isinstance(tool, dict)
+        and tool.get("function", {}).get("name") == "search_replace"
         for tool in tools_to_check
     )
 
@@ -261,7 +309,7 @@ def proxy_chat():
     # 3. SETTINGS FOR TOKEN TRACKING
     data["stream"] = True
     data["temperature"] = 0.5
-    data["model"] = "claude-sonnet-4-5-20250929-thinking" #Change the model if needed
+    # data["model"] = "claude-sonnet-4-5-20250929-thinking"  # Change the model if needed
     data["stream_options"] = {"include_usage": True}
 
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}
@@ -270,12 +318,16 @@ def proxy_chat():
         max_retries = 10
         retry_count = 0
         start_time = time.time()
-        
+
         while retry_count < max_retries:
             try:
-                print(f"Debug: Attempt {retry_count + 1} to start streaming from {TARGET_URL}...")
+                print(
+                    f"Debug: Attempt {retry_count + 1} to start streaming from {TARGET_URL}..."
+                )
                 # timeout=30 here applies to both connection and read (silence between chunks)
-                response = requests.post(TARGET_URL, headers=headers, json=data, stream=True, timeout=30)
+                response = requests.post(
+                    TARGET_URL, headers=headers, json=data, stream=True, timeout=30
+                )
                 response.raise_for_status()
 
                 captured_chunks = []
@@ -292,7 +344,7 @@ def proxy_chat():
                     # Store the raw chunk string (e.g., "data: {...}")
                     captured_chunks.append(decoded_chunk)
                     chunk_count += 1
-                    
+
                     if chunk_count % 10 == 0:
                         print(f"Debug: Sent {chunk_count} chunks...")
 
@@ -317,5 +369,6 @@ def proxy_chat():
 
     return Response(stream_with_context(generate()), content_type="text/event-stream")
 
+
 if __name__ == "__main__":
-    app.run(port=5000)
+    app.run(port=5000, debug=True)
