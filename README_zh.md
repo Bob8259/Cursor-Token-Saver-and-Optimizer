@@ -38,6 +38,7 @@ pip install -r requirements.txt
 ```
 
 ### 3. 运行代理服务
+在 `.env` 文件中，将 **Base URL** 和 **API KEY** 替换为您真实的 URL 和 KEY，然后执行以下代码。
 
 ```bash
 python forward.py
