@@ -1,8 +1,8 @@
 
-# Cursor-Token-Saver-and-Optimizer 
-[Youtube 视频演示](https://www.google.com/search?q=placeholder-link) | [English Version](https://github.com/Bob8259/Cursor-Token-Saver-and-Optimizer)
+# Cursor-Token-Saver-and-Customizer 
+[视频演示](https://www.google.com/search?q=placeholder-link) | [English Version](https://github.com/Bob8259/Cursor-Token-Saver-and-Optimizer)
 
-**Cursor-Token-Saver-and-Optimizer** 是一个给予开发者完全掌控 Cursor AI 能力的解决方案。
+**Cursor-Token-Saver-and-Customizer** 是一个给予开发者完全掌控 Cursor AI 能力的解决方案。
 
 Cursor 的设计初衷是照顾初学者，这往往导致其系统提示词（System Prompts）过于“臃肿”，消耗了不必要的 Token。此外，Cursor 默认的系统提示词限制了某些 CLI 命令（如 `echo` 或 `cat`），并且在与 Gemini 等特定模型配合时可能会遇到转义符格式化问题。此外，Cursor缺乏真正的**OpenAI API标准兼容性**；例如，如果您通过兼容OpenAI的提供商使用Claude模型，Cursor会忽略标准的OpenAI API格式，并强制使用其特有的Anthropic请求结构。本项目让你拥有对提示词的**完全控制权**，实现更精简的提示词、自定义规则，并最高可**节省 50% 的 Token 消耗**。
 
